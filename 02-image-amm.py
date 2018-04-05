@@ -23,25 +23,6 @@ def _getuniq(arr, fn):
     return list(s)[0]
 
 
-@cuda.jit
-def invert_impl(a, out, m, n):
-    i, j = cuda.grid(2)
-    if i < m and j < n:
-        out[i, j] = -a[i, j]
-
-
-def invert(a, out):
-    m, n = a.shape
-    if m * n > 1024:
-        threads_per_block = [32, 32]
-        blocks_per_grid = [math.ceil(m / 32), math.ceil(n / 32)]
-    else:
-        threads_per_block = [m, n]
-        blocks_per_grid = [1, 1]
-
-    return invert_impl[blocks_per_grid, threads_per_block](a, out, m, n)
-
-
 letters = ['A', 'X']
 
 
@@ -67,23 +48,20 @@ if __name__ == '__main__':
         cuda.to_device(im, to=x_memory[i])
 
     # %%
-    x_mem_inv = cuda.device_array_like(x_memory)
-    invert(x_memory, x_mem_inv)
-
     morph_mem_m = cuda.device_array(mem_shape)
     morph_mem_w = cuda.device_array(mem_shape)
 
-    mnn.mat_morph_max_mul(x_memory.T, x_mem_inv, morph_mem_m)
-    mnn.mat_morph_min_mul(x_memory.T, x_mem_inv, morph_mem_w)
+    mnn.mat_morph_mul_max_tt_minus(x_memory, x_memory, morph_mem_m)
+    mnn.mat_morph_mul_min_tt_minus(x_memory, x_memory, morph_mem_w)
 
     # %%
-    test_x = cuda.to_device(images[1]).reshape(x_shape)
+    test_x = cuda.to_device(images[1].reshape(x_shape))
     out_x = cuda.device_array(xt_shape)
 
-    mnn.mat_morph_max_mul(morph_mem_m, test_x.T, out_x)
-
-    check_out = out_x.copy_to_host(out_x).T.reshape(im_shape)
+    mnn.mat_morph_mul_max_it_plus(morph_mem_w, test_x.T, out_x)
 
     # %%
-    plt.imshow(check_out)
+    hout_x = out_x.copy_to_host().T.reshape(im_shape)
+    
+    plt.imshow(hout_x)
     plt.show()

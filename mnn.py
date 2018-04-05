@@ -4,10 +4,10 @@ import math
 
 
 @cuda.jit
-def mat_morph_max_mul_impl(a, b, c, w, q, h):
+def mat_morph_mul_max_it_plus_impl(a, b, c, stmp, w, q, h):
     row, col = cuda.grid(2)
 
-    tmp = 0
+    tmp = stmp
     if row < h and col < w:
         for i in range(q):
             val = a[row, i] + b[i, col]
@@ -17,10 +17,49 @@ def mat_morph_max_mul_impl(a, b, c, w, q, h):
 
 
 @cuda.jit
-def mat_morph_min_mul_impl(a, b, c, w, q, h):
+def mat_morph_mul_max_ii_plus_impl(a, b, c, stmp, w, q, h):
     row, col = cuda.grid(2)
 
-    tmp = 0
+    tmp = stmp
+    if row < h and col < w:
+        for i in range(q):
+            val = a[row, i] + b[col, i]
+            tmp = max(tmp, val)
+
+    c[row, col] = tmp
+
+
+@cuda.jit
+def mat_morph_mul_max_tt_minus_impl(a, b, c, stmp, w, q, h):
+    row, col = cuda.grid(2)
+
+    tmp = stmp
+    if row < h and col < w:
+        for i in range(q):
+            val = a[i, row] - b[i, col]
+            tmp = max(tmp, val)
+
+    c[row, col] = tmp
+
+
+@cuda.jit
+def mat_morph_mul_min_tt_minus_impl(a, b, c, stmp, w, q, h):
+    row, col = cuda.grid(2)
+
+    tmp = stmp
+    if row < h and col < w:
+        for i in range(q):
+            val = a[i, row] - b[i, col]
+            tmp = min(tmp, val)
+
+    c[row, col] = tmp
+
+
+@cuda.jit
+def mat_morph_min_mul_impl(a, b, c, stmp, w, q, h):
+    row, col = cuda.grid(2)
+
+    tmp = stmp
     if row < h and col < w:
         for i in range(q):
             val = a[row, i] + b[i, col]
@@ -29,13 +68,19 @@ def mat_morph_min_mul_impl(a, b, c, w, q, h):
     c[row, col] = tmp
 
 
-def mat_dot(fn, a, b, c):
-    assert a.shape[1] == b.shape[0]
-    assert c.shape == (a.shape[0], b.shape[1])
+def mat_dot(fn, idx, stmp, a, b, c):
+    ci, cj = idx
+    assert ci in [0, 1] and cj in [0, 1]
 
-    q = b.shape[0]
-    w = b.shape[1]
-    h = a.shape[0]
+    di = 0 if ci == 1 else 1
+    dj = 0 if cj == 1 else 1
+
+    assert a.shape[dj] == b.shape[di]
+    assert c.shape == (a.shape[cj], b.shape[ci])
+
+    q = a.shape[dj]
+    w = b.shape[ci]
+    h = a.shape[cj]
 
     if w*h > 1024:
         threads_per_block = [32, 32]
@@ -44,18 +89,34 @@ def mat_dot(fn, a, b, c):
         bpg_h = int(math.ceil(h / threads_per_block[1]))
         blocks_per_grid = [bpg_w, bpg_h]
     else:
-        threads_per_block = [w, h]
+        threads_per_block = [h, w]
         blocks_per_grid = [1, 1]
 
-    fn[blocks_per_grid, threads_per_block](a, b, c, w, q, h)
+    fn[blocks_per_grid, threads_per_block](a, b, c, stmp, w, q, h)
 
 
 def mat_morph_max_mul(a, b, c):
-    mat_dot(mat_morph_max_mul_impl, a, b, c)
+    mat_morph_mul_max_it_plus(a, b, c)
+
+
+def mat_morph_mul_max_it_plus(a, b, c):
+    mat_dot(mat_morph_mul_max_it_plus_impl, (1, 0), float('-inf'), a, b, c)
+
+
+def mat_morph_mul_max_ii_plus(a, b, c):
+    mat_dot(mat_morph_mul_max_ii_plus_impl, (0, 0), float('-inf'), a, b, c)
+
+
+def mat_morph_mul_max_tt_minus(a, b, c):
+    mat_dot(mat_morph_mul_max_tt_minus_impl, (1, 1), float('-inf'), a, b, c)
+
+
+def mat_morph_mul_min_tt_minus(a, b, c):
+    mat_dot(mat_morph_mul_min_tt_minus_impl, (1, 1), float('+inf'), a, b, c)
 
 
 def mat_morph_min_mul(a, b, c):
-    mat_dot(mat_morph_min_mul_impl, a, b, c)
+    mat_dot(mat_morph_min_mul_impl, (1, 0), float('+inf'), a, b, c)
 
 
 ################################################################################
@@ -63,10 +124,10 @@ import unittest
 
 
 @cuda.jit
-def _test_mat_mul_impl(a, b, c, w, q, h):
+def _test_mat_mul_impl(a, b, c, stmp, w, q, h):
     row, col = cuda.grid(2)
 
-    tmp = 0
+    tmp = stmp
     if row < h and col < w:
         for i in range(q):
             tmp += a[row, i] * b[i, col]
@@ -75,7 +136,7 @@ def _test_mat_mul_impl(a, b, c, w, q, h):
 
 
 def _test_mat_mul(a, b, c):
-    mat_dot(_test_mat_mul_impl, a, b, c)
+    mat_dot(_test_mat_mul_impl, (1, 0), 0, a, b, c)
 
 
 class TestMnnPackage(unittest.TestCase):
@@ -127,16 +188,4 @@ class TestMnnPackage(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    mat = np.matrix([[4, 2, 2],
-                     [2, 3, 5],
-                     [5, 8, 1],
-                     [6, 4, 4]])
-
-    mat_t = np.transpose(mat)
-
-    out = np.zeros((4, 4))
-
-    mat_morph_max_mul(mat, -mat_t, out)
-    print(out)
-
     unittest.main()
