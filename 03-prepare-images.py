@@ -4,10 +4,11 @@ import string
 
 from PIL import Image, ImageDraw, ImageFont, ImageChops
 
-chars = (string.ascii_letters + string.digits
-         + 'ĄĆĘŁÓŚŻŹ' + 'ąćęłóśżź'
-         + 'αβγδϵζηθικλμνξοπρστυϕχψω'
-         + 'ÄÖÜẞäöüß')
+chars = ('ABCDEFGHJKLMNOPQRSTUVWYZ' + '123456789'
+         + 'abcdefghjkmnopqrstuvwxyz'
+         + 'ĄĆĘŁÓŚŻŹ' + 'ąćęóśżź'
+         + 'αβδζηθκλμξπρσψω'
+         + 'ÄÖÜäöüß')
 font_name = 'fonts/Arial-Bold.ttf'
 
 
@@ -39,7 +40,7 @@ def generate_char_img(c, size, fg, bg, font_factory):
 
 if __name__ == '__main__':
     for size in [16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512]:
-        path = 'data/{0}'.format(size)
+        path = 'data_gen/{0}'.format(size)
         os.makedirs(path, exist_ok=True)
         for i, char in enumerate(chars):
             img = generate_char_img(char, size, 'black', 'white', font_factory)
