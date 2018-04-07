@@ -25,7 +25,7 @@ def _getuniq(arr, fn):
     return list(s)[0]
 
 
-letters = ['A', 'X']
+letters = ['A', 'X', '7']
 
 
 if __name__ == '__main__':
@@ -54,16 +54,18 @@ if __name__ == '__main__':
     samples_x = []
     n_tests = 10
 
-    def add_noise(test, noise):
-        sample = test + noise
-        return np.minimum(sample, 1)
-
     for i in range(n_tests):
         prob = (i / n_tests, 1 - i / n_tests)
-        noise = np.random.choice([1, 0], (32, 32), p=prob)
+        noise = np.random.choice([True, False], (32, 32), p=prob)
 
-        samples_a.append(add_noise(test_a, noise))
-        samples_x.append(add_noise(test_x, noise))
+        sample_a = np.copy(test_a)
+        sample_a[noise] = 1
+
+        sample_x = np.copy(test_x)
+        sample_x[noise] = 0
+
+        samples_a.append(sample_a)
+        samples_x.append(sample_x)
 
     # %%
     print('Performing test')
@@ -75,7 +77,7 @@ if __name__ == '__main__':
         samp_a = samples_a[i]
         samp_x = samples_x[i]
         out_a = memory.recall(samp_a, how='m')
-        out_x = memory.recall(samp_x, how='m')
+        out_x = memory.recall(samp_x, how='w')
 
         ax[0].imshow(samp_a)
         ax[1].imshow(out_a)
