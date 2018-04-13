@@ -1,10 +1,18 @@
 from numba import cuda
 import mnn
 import numpy as np
+import logging
 
 
 class AutoMemoryBuilder:
-    def __init__(self, x_shape, n_samples):
+    def __init__(self, x_shape, n_samples, logger: logging.Logger=None):
+        if logger is None:
+            logger = logging.Logger('AutoMemoryBuilder')
+            logger.addHandler(logging.NullHandler())
+
+        self._logger = logger.getChild('AutoMemoryBuilder')
+        self._logger.debug('Constructor')
+
         if len(x_shape) == 1:
             self._x_size = x_shape[0]
         else:
@@ -17,6 +25,11 @@ class AutoMemoryBuilder:
         self._xmem_shape = (n_samples, self._x_size)
 
         self._i = 0
+
+        self._logger.info(
+            'Allocating pinned array: {0} bytes'.format(
+                n_samples * self._x_size))
+
         self._pinned_mem = cuda.pinned_array(self._xmem_shape)
         self._stream = cuda.stream()
 
@@ -31,6 +44,8 @@ class AutoMemoryBuilder:
         if np.size(x) != self._x_size:
             raise ValueError('Wrong sample size')
 
+        self._logger.debug('Append %d', self._i)
+
         self._pinned_mem[self._i] = x.reshape(-1)
         self._i += 1
 
@@ -42,16 +57,29 @@ class AutoMemoryBuilder:
         if not self.is_full():
             raise RuntimeError('Memory is not full')
 
-        dev_mem = cuda.to_device(self._pinned_mem)
+        self._logger.debug('Transferring input data to device')
+
+        dev_mem = cuda.to_device(self._pinned_mem, stream=self._stream)
         mem_shape = (self._x_size, self._x_size)
+
+        self._logger.debug('Allocating memories on device')
+        self._logger.debug('dev_mem.shape={0}, mem_shape={1}'.format(dev_mem.shape, mem_shape))
 
         morph_mem_m = cuda.device_array(mem_shape)
         morph_mem_w = cuda.device_array(mem_shape)
 
         dev_mem_t = dev_mem.T
 
-        mnn.mat_morph_mul_max_minus(dev_mem_t, dev_mem, morph_mem_m)
-        mnn.mat_morph_mul_min_minus(dev_mem_t, dev_mem, morph_mem_w)
+        self._logger.debug('Calculating M memory')
+        mnn.mat_morph_mul_max_minus(dev_mem_t, dev_mem, morph_mem_m,
+                                    stream=self._stream)
+
+        self._logger.debug('Calculating W memory')
+        mnn.mat_morph_mul_min_minus(dev_mem_t, dev_mem, morph_mem_w,
+                                    stream=self._stream)
+
+        self._stream.synchronize()
+        self._logger.debug('Done')
 
         return Memory(morph_mem_m, morph_mem_w, self._x_size)
 
@@ -103,7 +131,9 @@ import unittest
 
 class AutoMemoryBuilderTest(unittest.TestCase):
     def test_smoke(self):
-        builder = AutoMemoryBuilder(x_shape=(1, 4), n_samples=3)
+        builder = AutoMemoryBuilder(
+            x_shape=(1, 4),
+            n_samples=3)
         self.assertFalse(builder.is_full())
 
         builder.append([4, 2, 5, 6])
