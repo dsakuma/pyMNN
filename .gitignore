@@ -1,3 +1,6 @@
 .ipynb_checkpoints
 __pycache__
 data_gen/
+/.cache/
+/.idea/
+/data_out/
