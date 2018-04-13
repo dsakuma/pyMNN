@@ -13,7 +13,7 @@ def mat_morph_mul_max_plus_impl(a, b, c, stmp, w, q, h):
             val = a[row, i] + b[i, col]
             tmp = max(tmp, val)
 
-    c[row, col] = tmp
+        c[row, col] = tmp
 
 
 @cuda.jit
@@ -26,7 +26,7 @@ def mat_morph_mul_max_minus_impl(a, b, c, stmp, w, q, h):
             val = a[row, i] - b[i, col]
             tmp = max(tmp, val)
 
-    c[row, col] = tmp
+        c[row, col] = tmp
 
 
 @cuda.jit
@@ -39,7 +39,7 @@ def mat_morph_mul_min_plus_impl(a, b, c, stmp, w, q, h):
             val = a[row, i] + b[i, col]
             tmp = min(tmp, val)
 
-    c[row, col] = tmp
+        c[row, col] = tmp
 
 
 @cuda.jit
@@ -52,7 +52,7 @@ def mat_morph_mul_min_minus_impl(a, b, c, stmp, w, q, h):
             val = a[row, i] - b[i, col]
             tmp = min(tmp, val)
 
-    c[row, col] = tmp
+        c[row, col] = tmp
 
 
 def mat_dot(fn, stmp, a, b, c, stream=0):
@@ -224,6 +224,17 @@ class TestMnnPackage(unittest.TestCase):
 
         mat_morph_mul_max_plus(mat, a.T, out)
         np.testing.assert_array_equal(expected, out.T)
+
+    def test_bug_mat_mul_10x400(self):
+        '''
+        Bug test case:
+        using mat_morph_mul_max_minus to multiply 10x400 matrix by itself
+        '''
+
+        a = np.random.randint(0, 10, size=(10, 400))
+        c = np.empty((400, 400))
+
+        mat_morph_mul_max_minus(a.T, a, c)
 
 
 if __name__ == '__main__':
