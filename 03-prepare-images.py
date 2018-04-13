@@ -39,7 +39,7 @@ def generate_char_img(c, size, fg, bg, font_factory):
 
 
 if __name__ == '__main__':
-    for size in [16, 24, 32, 48, 64, 96, 128, 192, 256, 384, 512]:
+    for size in range(10, 81):
         path = 'data_gen/{0}'.format(size)
         os.makedirs(path, exist_ok=True)
         for i, char in enumerate(chars):
