@@ -10,6 +10,7 @@ if __name__ == '__main__':
                                 transform_xs=lambda xs: np.power(xs, 2))
     plt.xlabel('Input sample size')
     plt.ylabel('Network building time [s]')
+    plt.savefig('data_out/build-insize.png', dpi=300)
     plt.show()
 
     test_util.plot_from_pickles('build-nsamples',
@@ -17,6 +18,7 @@ if __name__ == '__main__':
                                 params=['20x20', '50x50', '80x80'])
     plt.xlabel('Number of input samples')
     plt.ylabel('Network building time [s]')
+    plt.savefig('data_out/build-nsamples.png', dpi=300)
     plt.show()
 
     test_util.plot_from_pickles('recall-insize',
@@ -25,6 +27,7 @@ if __name__ == '__main__':
                                 transform_xs=lambda xs: np.power(xs, 2))
     plt.xlabel('Input sample size')
     plt.ylabel('Average sample recall time [s]')
+    plt.savefig('data_out/recall-insize.png', dpi=300)
     plt.show()
 
     test_util.plot_from_pickles('recall-nsamples',
@@ -32,4 +35,5 @@ if __name__ == '__main__':
                                 params=['20x20', '50x50', '80x80'])
     plt.xlabel('Number of input samples')
     plt.ylabel('Average sample recall time [s]')
+    plt.savefig('data_out/recall-nsamples.png', dpi=300)
     plt.show()

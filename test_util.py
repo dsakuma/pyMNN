@@ -110,6 +110,8 @@ def test_recall_size(size, repeats, n_samples, logger):
     times = np.empty((len(n_samples), repeats))
 
     for si, ns in enumerate(n_samples):
+        print('{0} {1}'.format(size, ns))
+
         sample_list = list(data.load_n_random(ns))
         builder = mem.AutoMemoryBuilder((size, size), ns, logger)
 
@@ -195,7 +197,10 @@ def plot_from_pickles(what, param_name, params,
             Y[j, k] = reduce_ys(times_list)
 
     # %%
-    plt.plot(X, Y.T, '.')
+    colors = ['ko', 'kv', 'ks']
+    for y, c in zip(Y, colors):
+        plt.plot(X[::2], y[::2], c)
+
     plt.legend(['{0}={1}'.format(param_name, i) for i in params])
     plt.grid()
 
