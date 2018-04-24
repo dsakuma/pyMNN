@@ -198,3 +198,21 @@ def plot_from_pickles(what, param_name, params,
     plt.plot(X, Y.T, '.')
     plt.legend(['{0}={1}'.format(param_name, i) for i in params])
     plt.grid()
+
+
+def set_random_elems(a, val, prob):
+    assert prob >= 0 and prob <= 1
+    noise = np.random.choice([True, False], a.shape, p=[prob, 1-prob])
+
+    c = np.copy(a)
+    c[noise] = val
+
+    return c
+
+
+def dilative_bool_noise(im, amount):
+    return set_random_elems(im, 1, amount)
+
+
+def erosive_bool_noise(im, amount):
+    return set_random_elems(im, 0, amount)

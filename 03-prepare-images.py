@@ -9,7 +9,7 @@ chars = ('ABCDEFGHJKLMNOPQRSTUVWYZ' + '123456789'
          + 'ĄĆĘŁÓŚŻŹ' + 'ąćęóśżź'
          + 'αβδζηθκλμξπρσψω'
          + 'ÄÖÜäöüß')
-font_name = 'fonts/Arial-Bold.ttf'
+font_name = 'fonts/LiberationMono-Regular.ttf'
 
 
 def font_factory(size):
@@ -26,7 +26,7 @@ def trim(im):
 
 
 def generate_char_img(c, size, fg, bg, font_factory):
-    font_size = int(math.log2(size)) * 4
+    font_size = int(math.log2(size)) * 6
     font = font_factory(font_size)
 
     c_size = font.getsize(c)
@@ -35,7 +35,13 @@ def generate_char_img(c, size, fg, bg, font_factory):
     draw = ImageDraw.Draw(img)
     draw.text((0, 0), c, font=font, fill=fg)
 
-    return trim(img).resize((size, size))
+    trimmed = trim(img)
+    nw, nh = (size, size)
+    ow, oh = trimmed.size
+    final = Image.new('1', (nw, nh), color=bg)
+
+    final.paste(trimmed, ((nw - ow) // 2, (nh - oh) // 2))
+    return final
 
 
 if __name__ == '__main__':
